@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Person Detector</title>
+
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.2/gh-fork-ribbon.min.css" />
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+    <input type="hidden" id="video_url" name="video" value="v3.mp4"/>
+    <div class="wrapper">
+        <div id="loading-message">
+          Loading Model (This may take some time)...
+        </div>
+        <div id="error-message" style="display:none">
+          Sorry! An error occured while loading the model 😢
+          <br>
+          If you're on an iPhone, please try using Safari.
+        </div>
+        <div id="success-message" style="display:none">
+          It's running
+        </div>
+        <div id="btn-container" style="text-align: center; margin: 5px; display: none;">
+          <button id="webcam-btn">WebCam</button>
+          <button id="video-btn">Saved Video</button>
+          <button id="stop-btn">Stop</button>
+        </div>
+        <div class="webcam-ui-container">
+          <div id="webcam-wrapper" style="display: none">
+            <video id="webcam" autoplay muted ></video>
+          </div>
+        </div>
+    </div>
+
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+    <script src="js/webcam.js"></script>
+    <script src="js/kalman-filter.min.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/model.js"></script>
+</body>
+</html>
