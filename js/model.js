@@ -2,8 +2,13 @@ var {KalmanFilter} = kalmanFilter;
 
 const video = document.getElementById('webcam')
 const webcamElem = document.getElementById('webcam-wrapper');
-const prediction_data = {}
+const predictions_data = {}
 let first_prediction = false
+var pre_center = null
+const colors = [
+  "#00FFFF", "#00FF00", "#C0C0C0", "#800000", "#008080", "#0000FF", "#000080","#FFFF00"
+]
+var counter = 0
 
 function drawRect(x, y, w, h, text = '', color = 'red') {
     const rect = document.createElement('div');
@@ -44,6 +49,52 @@ function drawRect(x, y, w, h, text = '', color = 'red') {
     // })
 }
 
+function calc_distance(p1,p2){
+  if (p1 && p2){
+    let [x1,y1] = p1
+    let [x2,y2] = p2
+    return Math.sqrt((x1-x2)**2+(y2-y1)**2)
+  }
+  else{
+    return 0
+  }
+}
+
+function fillPredictions(center){
+  obj_len = Object.keys(predictions_data).length
+  obj_id = null
+  if (obj_len == 0){
+    obj_id = obj_len
+      predictions_data['p'+obj_id] = {
+          pre_center: center,
+          obs: [center],
+          id: obj_id
+      }
+  }else{
+      min_key = null
+      min_value = null
+      for (let [key, value] of Object.entries(predictions_data)) {
+          dis = calc_distance(value.pre_center,center)
+          if (!min_value || dis < min_value){
+              min_key = key
+              min_value = dis
+          }
+      }
+      if(min_value > 50){
+          obj_id = obj_len
+          predictions_data['p'+obj_id] = {
+              pre_center: center,
+              obs: [center],
+              id: obj_id
+          }
+      }else{
+          predictions_data[min_key].pre_center = center
+          predictions_data[min_key].obs.push(center)
+          obj_id = predictions_data[min_key].id
+      }
+  }
+  return obj_id
+}
 
 // function getPredicted(kf,predicted,pCorrected,obs){
 //   console.log(obs)
@@ -92,10 +143,13 @@ function predictVideo() {
             let top = predictions[n].bbox[1]
             let width = predictions[n].bbox[2]
             let height = predictions[n].bbox[3]
-            drawRect(left, top, width, height,`${className} Confidence: ${Math.round(classProb * 100)}%`)
+
+            let center = [left+width/2,top+height/2]
+            let color_id = fillPredictions(center)
+
+            drawRect(left, top, width, height,`${className} Confidence: ${Math.round(classProb * 100)}%`,colors[color_id])
             prediction_this_time = true
 
-            center = [left+width/2,top+height/2]
 
             
             // if (!first_prediction){
