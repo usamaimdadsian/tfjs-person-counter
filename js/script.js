@@ -62,6 +62,7 @@ function modelLoaded(){
   stop_btn.addEventListener('click', async () => {
     webcam_btn.disabled = false
     video_btn.disabled = false
+    predictions_data = {}
     await webcam.stop()
     stop_proc = true
 
