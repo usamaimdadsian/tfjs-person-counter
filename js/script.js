@@ -57,6 +57,8 @@ function modelLoaded(){
       let url = document.getElementById('video_url').value
       webcam.setupVideo(url).then(() => {
         console.log('webcam loaded')
+        counting = true
+        drawROI()
         doneLoading()
         predictVideo()
       })
@@ -73,6 +75,7 @@ function modelLoaded(){
     predictions_data = {}
     await webcam.stop()
     stop_proc = true
+    counting = false
 
     document.getElementById('loading-message').innerText = "Model Successfully Loaded"
     document.getElementById('loading-message').style.display = 'block'

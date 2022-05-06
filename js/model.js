@@ -13,24 +13,30 @@ const colors = [
   '#FFFFFF', '#FF00FF', '#808000', '#FFFF00', '#808080', '#800080', '#008000', '#FF0000'
 ]
 var counter = 0
+var [roi_x,roi_y,roi_w,roi_h] = [247,142,247,88]
+var counting = false
+var [top_to_down,down_to_up] = [0,0]
+
+function drawROI(){
+  let roi = document.createElement('div');
+  roi.classList.add('roi');
+  roi.style.cssText = `top: ${roi_y}px; left: ${roi_x}px; width: ${roi_w}px; height: ${roi_h}px; border-color: lightgreen;`;
+
+  roi.innerHTML = `
+    <div id="top-label" class="count-label">
+      Counter: 0
+    </div>
+    <div id="bottom-label" class="count-label">
+      Counter: 0
+    </div>
+  `
+  webcamElem.appendChild(roi);
+}
 
 function drawRect(x, y, w, h, text = '', color = 'red') {
   const rect = document.createElement('div');
   rect.classList.add('rect');
   rect.style.cssText = `top: ${y}px; left: ${x}px; width: ${w}px; height: ${h}px; border-color: ${color};`;
-
-  // center = [x+w/2,y+h/2]
-
-  // if (observations.length > 4){
-  //   observations.shift()
-  // }
-  // observations.push(center)
-
-  // while (observationElements.length > 4){
-  //   let tele = document.getElementById(observationElements[0])
-  //   tele.remove()
-  //   observationElements.shift()
-  // }
 
   const label = document.createElement('div');
   label.classList.add('label');
@@ -38,19 +44,6 @@ function drawRect(x, y, w, h, text = '', color = 'red') {
   rect.appendChild(label);
 
   webcamElem.appendChild(rect);
-
-  // let trackingPoints = kFilter.filterAll(observations)
-  // trackingPoints.forEach((point) => {
-  //   let idName = "tracking_"+counter
-  //   let trackingRect = document.createElement('div');
-  //   trackingRect.classList.add('tracking')
-  //   trackingRect.id = idName
-  //   // trackingRect.style.cssText = `top: ${point[1]}px; left: ${point[0]}px; width: ${point[2]}px; height: ${point[3]}px; border-color: blue;`;
-  //   trackingRect.style.cssText = `top: ${point[1]}px; left: ${point[0]}px; width: ${10}px; height: ${10}px; border-color: blue;`;
-  //   webcamElem.appendChild(trackingRect)
-  //   counter += 1
-  //   observationElements.push(idName)
-  // })
 }
 
 function setPredictionStats(){
@@ -70,6 +63,20 @@ function setPredictionStats(){
   document.getElementById('counting').innerHTML = thtml
 }
 
+function checkOverlapped(rec1,rec2){
+  let [x1,y1,w1,h1] = rec1
+  let [x2,y2,w2,h2] = rec2
+  let [l1,r1] = [[x1,y1],[x1+w1,y1+h1]]
+  let [l2,r2] = [[x2,y2],[x2+w2,y2+h2]]
+
+  area = (Math.max(l1[0], l2[0]) - Math.min(r1[0], r2[0])) * (Math.max(l1[1], l2[1]) - Math.min(r1[1], r2[1]))
+    
+  if (area > 0){
+      return true
+  }
+  return false
+}
+
 function calc_distance(p1, p2) {
   if (p1 && p2) {
     let [x1, y1] = p1
@@ -83,7 +90,8 @@ function calc_distance(p1, p2) {
 function findThreshold(pre_x,pre_y,dimension_points){
   let [x,y,w,h] = dimension_points
   let threshold = 0
-  if (pre_x && pre_y){
+  
+  if (pre_x && pre_y && !((y < 10 && y+h <  video.videoHeight/2)|| (y+h > video.videoHeight - 10 && y > video.videoHeight/2))){
       if (Math.abs(x-pre_x) > Math.abs(y-pre_y)){
           threshold = Math.ceil(w/2)
       }else{
@@ -110,6 +118,54 @@ function checkChangeable(min_key){
   return flag
 }
 
+function inc_counter(obj,type='top'){
+  let counter = 0
+  // if (obj.last_counted == null){
+  //   counter += 1
+  // }else{
+  //   delta_t = new Date() - obj.last_counted;
+  //   if (delta_t > 4000){
+  //     counter += 1
+  //   }
+  // }
+  if(!obj.counted){
+    counter += 1
+  }
+  if (counter == 1){
+    obj.last_counted = new Date()
+    obj.counted = true
+    if (type == 'top'){
+      top_to_down += counter
+      document.getElementById('top-label').innerText = "Counter: "+top_to_down
+    }
+    else{
+      down_to_up += counter
+      document.getElementById('bottom-label').innerText = "Counter: "+down_to_up
+
+    }
+  }
+
+}
+
+function doCounting(obj_id,predicted_rec){
+  let p_data = predictions_data['p'+obj_id]
+  let size = p_data.obs.length
+  if (checkOverlapped(predicted_rec,[roi_x,roi_y,roi_w,roi_h])){
+    p_point = p_data.obs[size-2]
+    c_point = p_data.obs[size-1]
+    if (p_point && c_point){
+      if (c_point[1] > p_point[1]){
+        inc_counter(p_data,'top')
+      }
+      else{
+        inc_counter(p_data,'down')
+      }
+
+    }
+  }
+  console.log('Up -> Down:',top_to_down,'Down -> Up:',down_to_up)
+}
+
 function createNewID(center,obj_id){
   return {
     pre_center: center,
@@ -119,7 +175,9 @@ function createNewID(center,obj_id){
     end_time: new Date(),
     pre_x: null,
     pre_y: null,
-    changeable: true
+    changeable: true,
+    last_counted: null,
+    counted: false
   }
 }
 
@@ -166,6 +224,10 @@ function fillPredictions(center,dimension_points){
           predictions_data[min_key].pre_y = y
           obj_id = predictions_data[min_key].id
       }
+  }
+
+  if (counting){
+    doCounting(obj_id,dimension_points)
   }
   return obj_id
 }
