@@ -4,12 +4,13 @@ var {
 
 const video = document.getElementById('webcam')
 const webcamElem = document.getElementById('webcam-wrapper');
-const predictions_data = {}
+var predictions_data = {}
 let first_prediction = false
 var pre_center = null
 const html = ''
 const colors = [
-  "#00FFFF", "#00FF00", "#C0C0C0", "#800000", "#008080", "#0000FF", "#000080", "#FFFF00"
+  '#00FFFF', '#00FF00', '#C0C0C0', '#000000', '#800000', '#008080', '#0000FF', '#000080',
+  '#FFFFFF', '#FF00FF', '#808000', '#FFFF00', '#808080', '#800080', '#008000', '#FF0000'
 ]
 var counter = 0
 
@@ -62,43 +63,63 @@ function calc_distance(p1, p2) {
   }
 }
 
-function fillPredictions(center) {
+function findThreshold(pre_x,pre_y,dimension_points){
+  let [x,y,w,h] = dimension_points
+  let threshold = 0
+  if (pre_x && pre_y){
+      if (Math.abs(x-pre_x) > Math.abs(y-pre_y)){
+          threshold = Math.ceil(w/2)
+      }else{
+          threshold = Math.ceil(h/2)
+      }
+  }
+  else{
+      threshold = 50
+  }
+  return threshold;
+}
+
+function createNewID(center,obj_id){
+  return {
+    pre_center: center,
+    obs: [center],
+    id: obj_id,
+    start_time: new Date(),
+    end_time: new Date(),
+    pre_x: null,
+    pre_y: null
+  }
+}
+
+function fillPredictions(center,dimension_points){
+  let [x,y,w,h] = dimension_points
   obj_len = Object.keys(predictions_data).length
   obj_id = null
-  if (obj_len == 0) {
+  if (obj_len == 0){
     obj_id = obj_len
-    predictions_data['p' + obj_id] = {
-      pre_center: center,
-      obs: [center],
-      id: obj_id,
-      start_time: new Date(),
-      end_time: new Date()
-    }
-  } else {
-    min_key = null
-    min_value = null
-    for (let [key, value] of Object.entries(predictions_data)) {
-      dis = calc_distance(value.pre_center, center)
-      if (!min_value || dis < min_value) {
-        min_key = key
-        min_value = dis
+      predictions_data['p'+obj_id] = createNewID(center,obj_id)
+  }else{
+      min_key = null
+      min_value = null
+      for (let [key, value] of Object.entries(predictions_data)) {
+          dis = calc_distance(value.pre_center,center)
+          if (!min_value || dis < min_value){
+              min_key = key
+              min_value = dis
+          }
       }
-    }
-    if (min_value > 50) {
-      obj_id = obj_len
-      predictions_data['p' + obj_id] = {
-        pre_center: center,
-        obs: [center],
-        id: obj_id,
-        start_time: new Date(),
-        end_time: new Date()
+      let threshold = findThreshold(predictions_data[min_key].pre_x,predictions_data[min_key].pre_y,dimension_points)
+      if(min_value > threshold){
+          obj_id = obj_len
+          predictions_data['p'+obj_id] = createNewID(center,obj_id)
+      }else{
+          predictions_data[min_key].pre_center = center
+          predictions_data[min_key].end_time = new Date()
+          predictions_data[min_key].obs.push(center)
+          predictions_data[min_key].pre_x = x
+          predictions_data[min_key].pre_y = y
+          obj_id = predictions_data[min_key].id
       }
-    } else {
-      predictions_data[min_key].pre_center = center
-      predictions_data[min_key].end_time = new Date()
-      predictions_data[min_key].obs.push(center)
-      obj_id = predictions_data[min_key].id
-    }
   }
   return obj_id
 }
@@ -132,8 +153,11 @@ function clearRects() {
   }
 }
 
+function getCorrectedDimension(point){
+  return Math.round(point/ratio)
+}
+
 function predictVideo() {
-  webcamElem.style.cssText = `width:${video.videoWidth}px; height:${video.videoHeight}px;`
   // Now let's start classifying the stream.
   model.detect(video).then(function (predictions) {
     // Remove any highlighting we did previous frame.
@@ -146,15 +170,15 @@ function predictVideo() {
       if (predictions[n].score > 0.66 && predictions[n].class == 'person') {
         let className = predictions[n].class
         let classProb = predictions[n].score
-        let left = predictions[n].bbox[0]
-        let top = predictions[n].bbox[1]
-        let width = predictions[n].bbox[2]
-        let height = predictions[n].bbox[3]
+        let left = getCorrectedDimension(predictions[n].bbox[0])
+        let top = getCorrectedDimension(predictions[n].bbox[1])
+        let width = getCorrectedDimension(predictions[n].bbox[2])
+        let height = getCorrectedDimension(predictions[n].bbox[3])
 
         let center = [left + width / 2, top + height / 2]
-        let color_id = fillPredictions(center)
+        let color_id = fillPredictions(center,[left,top,width,height])
 
-        drawRect(left, top, width, height, `${className} Confidence: ${Math.round(classProb * 100)}%`, colors[color_id])
+        drawRect(left, top, width, height, `ID: ${color_id+1}, ${className}: ${Math.round(classProb * 100)}%`, colors[color_id])
         prediction_this_time = true
 
 

@@ -5,6 +5,9 @@ var counter = 0;
 var stop_proc = false
 const webcam = new Webcam(document.getElementById('webcam'))
 
+// Changed Video Width, Changed Video Height
+var ratio = null
+
 
 
 
@@ -19,6 +22,11 @@ function doneLoading() {
 
   const webcamElem = document.getElementById('webcam-wrapper');
   webcamElem.style.display = 'flex';
+
+  ratio = video.videoWidth/640
+  video.width = video.videoWidth/ratio
+  video.height = video.videoHeight/ratio
+  webcamElem.style.cssText = `width:${video.width}px; height:${video.height}px;`
 }
 
 function modelLoaded(){
