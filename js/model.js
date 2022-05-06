@@ -53,6 +53,23 @@ function drawRect(x, y, w, h, text = '', color = 'red') {
   // })
 }
 
+function setPredictionStats(){
+  let thtml = '';
+  for (let [k, v] of Object.entries(predictions_data)) {
+    thtml += ` 
+              <div class="counting-container">
+                <h4>Person: ${v.id+1}</h4>
+                <span><b>Entering Time:</b>${v.start_time.toLocaleTimeString()}</span>
+                <br>
+                <span><b>Leave Time:</b>${v.end_time.toLocaleTimeString()}</span>
+                <br>
+                <span><b>Elapsed Time:</b>${v.end_time-v.start_time} milliseconds</span>
+              </div>
+            `
+  }
+  document.getElementById('counting').innerHTML = thtml
+}
+
 function calc_distance(p1, p2) {
   if (p1 && p2) {
     let [x1, y1] = p1
@@ -79,6 +96,20 @@ function findThreshold(pre_x,pre_y,dimension_points){
   return threshold;
 }
 
+function findDelay(t){
+  ct = new Date()
+  return ct-t
+}
+function checkChangeable(min_key){
+  flag = false
+  pt = predictions_data[min_key].end_time
+  if (findDelay(pt) > 2500){
+    flag = true
+    predictions_data[min_key].changeable = false
+  }
+  return flag
+}
+
 function createNewID(center,obj_id){
   return {
     pre_center: center,
@@ -87,7 +118,8 @@ function createNewID(center,obj_id){
     start_time: new Date(),
     end_time: new Date(),
     pre_x: null,
-    pre_y: null
+    pre_y: null,
+    changeable: true
   }
 }
 
@@ -102,16 +134,30 @@ function fillPredictions(center,dimension_points){
       min_key = null
       min_value = null
       for (let [key, value] of Object.entries(predictions_data)) {
-          dis = calc_distance(value.pre_center,center)
-          if (!min_value || dis < min_value){
-              min_key = key
-              min_value = dis
+          if(value.changeable){
+            dis = calc_distance(value.pre_center,center)
+            if (!min_value || dis < min_value){
+                min_key = key
+                min_value = dis
+            }
           }
       }
       let threshold = findThreshold(predictions_data[min_key].pre_x,predictions_data[min_key].pre_y,dimension_points)
-      if(min_value > threshold){
-          obj_id = obj_len
-          predictions_data['p'+obj_id] = createNewID(center,obj_id)
+      if(min_value > threshold || !predictions_data[min_key].changeable || checkChangeable(min_key)){
+        // if(min_value > threshold){
+          if ((predictions_data[min_key].end_time - predictions_data[min_key].start_time) < 1500){
+            predictions_data[min_key].pre_center = center
+            predictions_data[min_key].end_time = new Date()
+            predictions_data[min_key].obs.push(center)
+            predictions_data[min_key].pre_x = x
+            predictions_data[min_key].pre_y = y
+            obj_id = predictions_data[min_key].id
+          }
+          else{
+            obj_id = obj_len
+            console.log('ID',obj_id+1,'Threshold',threshold,(min_value > threshold),!predictions_data[min_key].changeable,checkChangeable(min_key))
+            predictions_data['p'+obj_id] = createNewID(center,obj_id)
+          }
       }else{
           predictions_data[min_key].pre_center = center
           predictions_data[min_key].end_time = new Date()
@@ -199,20 +245,7 @@ function predictVideo() {
         // }
       }
     }
-    let thtml = '';
-    for (let [k, v] of Object.entries(predictions_data)) {
-      thtml += ` 
-                <div class="counting-container">
-                  <h4>Person: ${v.id+1}</h4>
-                  <span><b>Entering Time:</b>${v.start_time.toLocaleTimeString()}</span>
-                  <br>
-                  <span><b>Leave Time:</b>${v.end_time.toLocaleTimeString()}</span>
-                  <br>
-                  <span><b>Elapsed Time:</b>${v.end_time-v.start_time} milliseconds</span>
-                </div>
-              `
-    }
-    document.getElementById('counting').innerHTML = thtml
+    setPredictionStats()
     if (prediction_this_time) {
       first_prediction = true
       // console.log(prediction_data)
