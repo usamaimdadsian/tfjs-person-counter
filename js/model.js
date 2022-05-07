@@ -169,12 +169,15 @@ function createNewID(center,obj_id){
 // Logic to save and update person id data
 function fillPredictions(center,dimension_points){
   let [x,y,w,h] = dimension_points
+  // Fine the length of current assigned person ID
   obj_len = Object.keys(predictions_data).length
   obj_id = null
   if (obj_len == 0){
+    // Creates new person ID on start
     obj_id = obj_len
       predictions_data['p'+obj_id] = createNewID(center,obj_id)
   }else{
+      // Find the distance of person id who has the minimum euclidean distance with the prediction
       min_key = null
       min_value = null
       for (let [key, value] of Object.entries(predictions_data)) {
@@ -186,9 +189,13 @@ function fillPredictions(center,dimension_points){
             }
           }
       }
+      // Find the threshold with should be then compared with the the distance calculated in previous step 
       let threshold = findThreshold(predictions_data[min_key].pre_x,predictions_data[min_key].pre_y,dimension_points)
+
+      // if distance is greater than threshold or Person ID is changeable or check with Time constraint that if it is changeable
       if(min_value > threshold || !predictions_data[min_key].changeable || checkChangeable(min_key)){
         // if(min_value > threshold){
+          // if the difference between previously detection and current detection is less than 1.5s then append to min_key object otherwise create new
           if ((predictions_data[min_key].end_time - predictions_data[min_key].start_time) < 1500){
             predictions_data[min_key].pre_center = center
             predictions_data[min_key].end_time = new Date()
@@ -203,6 +210,7 @@ function fillPredictions(center,dimension_points){
             predictions_data['p'+obj_id] = createNewID(center,obj_id)
           }
       }else{
+        // Create new Object
           predictions_data[min_key].pre_center = center
           predictions_data[min_key].end_time = new Date()
           predictions_data[min_key].obs.push(center)
@@ -211,7 +219,7 @@ function fillPredictions(center,dimension_points){
           obj_id = predictions_data[min_key].id
       }
   }
-
+  // If counting is enabled then starting counting people
   if (counting){
     doCounting(obj_id,dimension_points)
   }
