@@ -12,38 +12,30 @@
 
 </head>
 <body>
+    <!-- Video input address -->
     <input type="hidden" id="video_url" name="video" value="mini_store.mp4"/>
     <div class="wrapper">
+        <!-- Model related messages -->
         <div id="loading-message">
           Loading Model (This may take some time)...
-        </div>
-        <div id="error-message" style="display:none">
-          Sorry! An error occured while loading the model 😢
-          <br>
-          If you're on an iPhone, please try using Safari.
         </div>
         <div id="success-message" style="display:none">
           It's running
         </div>
+
+        <!-- Button to handle model -->
         <div id="btn-container" style="text-align: center; margin: 5px; display: none;">
-          <button id="webcam-btn">WebCam</button>
           <button id="video-btn">Saved Video</button>
           <button id="stop-btn">Stop</button>
         </div>
+
+        <!-- Video Element -->
         <div class="webcam-ui-container">
           <div id="webcam-wrapper" style="display: none">
             <video id="webcam" autoplay muted></video>
           </div>
         </div>
     </div>
-
-    <br>
-    <h2 style="text-align: center;">Prediction Stats</h2>
-    <div id="counting" class="counting-main-container">
-
-    </div>
-
-    <h2 style="text-align: center;">Heat Map</h2>
 
 
     

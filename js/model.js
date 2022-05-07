@@ -17,6 +17,8 @@ var [roi_x,roi_y,roi_w,roi_h] = [247,142,247,88]
 var counting = false
 var [top_to_down,down_to_up] = [0,0]
 
+
+// It draws the center rectangle which shows counting
 function drawROI(){
   let roi = document.createElement('div');
   roi.classList.add('roi');
@@ -33,6 +35,7 @@ function drawROI(){
   webcamElem.appendChild(roi);
 }
 
+// Draws the detection rectangle on person along with label
 function drawRect(x, y, w, h, text = '', color = 'red') {
   const rect = document.createElement('div');
   rect.classList.add('rect');
@@ -46,23 +49,7 @@ function drawRect(x, y, w, h, text = '', color = 'red') {
   webcamElem.appendChild(rect);
 }
 
-function setPredictionStats(){
-  let thtml = '';
-  for (let [k, v] of Object.entries(predictions_data)) {
-    thtml += ` 
-              <div class="counting-container">
-                <h4>Person: ${v.id+1}</h4>
-                <span><b>Entering Time:</b>${v.start_time.toLocaleTimeString()}</span>
-                <br>
-                <span><b>Leave Time:</b>${v.end_time.toLocaleTimeString()}</span>
-                <br>
-                <span><b>Elapsed Time:</b>${v.end_time-v.start_time} milliseconds</span>
-              </div>
-            `
-  }
-  document.getElementById('counting').innerHTML = thtml
-}
-
+// Checks if two rectangles have some area common are not
 function checkOverlapped(rec1,rec2){
   let [x1,y1,w1,h1] = rec1
   let [x2,y2,w2,h2] = rec2
@@ -77,6 +64,8 @@ function checkOverlapped(rec1,rec2){
   return false
 }
 
+
+// Find the euclidean distance
 function calc_distance(p1, p2) {
   if (p1 && p2) {
     let [x1, y1] = p1
@@ -87,6 +76,7 @@ function calc_distance(p1, p2) {
   }
 }
 
+// Find dynamic threshold for euclidean distance condition
 function findThreshold(pre_x,pre_y,dimension_points){
   let [x,y,w,h] = dimension_points
   let threshold = 0
@@ -118,16 +108,9 @@ function checkChangeable(min_key){
   return flag
 }
 
+// count the people
 function inc_counter(obj,type='top'){
   let counter = 0
-  // if (obj.last_counted == null){
-  //   counter += 1
-  // }else{
-  //   delta_t = new Date() - obj.last_counted;
-  //   if (delta_t > 4000){
-  //     counter += 1
-  //   }
-  // }
   if(!obj.counted){
     counter += 1
   }
@@ -146,7 +129,7 @@ function inc_counter(obj,type='top'){
   }
 
 }
-
+// First check the condition whether the prediction and roi rectangle are overlappend then do counting
 function doCounting(obj_id,predicted_rec){
   let p_data = predictions_data['p'+obj_id]
   let size = p_data.obs.length
@@ -166,6 +149,7 @@ function doCounting(obj_id,predicted_rec){
   console.log('Up -> Down:',top_to_down,'Down -> Up:',down_to_up)
 }
 
+// Create new object ID
 function createNewID(center,obj_id){
   return {
     pre_center: center,
@@ -181,6 +165,8 @@ function createNewID(center,obj_id){
   }
 }
 
+
+// Logic to save and update person id data
 function fillPredictions(center,dimension_points){
   let [x,y,w,h] = dimension_points
   obj_len = Object.keys(predictions_data).length
@@ -232,28 +218,7 @@ function fillPredictions(center,dimension_points){
   return obj_id
 }
 
-// function getPredicted(kf,predicted,pCorrected,obs){
-//   console.log(obs)
-//   predicted = kf.predict({
-//       pCorrected
-//   });
-
-//   const correctedState = kf.correct({
-//       predicted,
-//       obs
-//   });
-//   prediction = predicted.mean[0][0]
-//   // predictions.push(predicted.mean[0][0])
-//   // predicted = predictedState.mean
-
-//   // results.push(...correctedState.mean[0]);
-
-//   // update the pCorrected for next loop iteration
-//   pCorrected = correctedState
-//   return {predicted,pCorrected,prediction}
-// }
-
-
+// Function to remove rectangles after the prediction
 function clearRects() {
   const rects = document.getElementsByClassName('rect');
   while (rects[0]) {
@@ -265,6 +230,8 @@ function getCorrectedDimension(point){
   return Math.round(point/ratio)
 }
 
+
+// This function run in a loop to do prediction every time.
 function predictVideo() {
   // Now let's start classifying the stream.
   model.detect(video).then(function (predictions) {
@@ -288,26 +255,8 @@ function predictVideo() {
 
         drawRect(left, top, width, height, `ID: ${color_id+1}, ${className}: ${Math.round(classProb * 100)}%`, colors[color_id])
         prediction_this_time = true
-
-
-        // if (!first_prediction){
-        //   var kFilter = new KalmanFilter({observation: 2});
-        //   var predicted = kFilter.predict()
-        //   var {predi,pCorrected,prediction} = getPredicted(kFilter,predicted,null,center)
-
-
-        //   prediction_data['p'+n] = {
-        //     kFilter: kFilter,
-        //     observations: [center],
-        //     predictions: [prediction],
-        //     previouslyCorrected: pCorrected,
-        //     predicted: predi
-
-        //   }
-        // }
       }
     }
-    setPredictionStats()
     if (prediction_this_time) {
       first_prediction = true
       // console.log(prediction_data)
