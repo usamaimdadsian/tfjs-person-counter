@@ -4,6 +4,7 @@ var observationElements = [];
 var counter = 0;
 var stop_proc = false
 const webcam = new Webcam(document.getElementById('webcam'))
+const pmodel = new Model()
 
 // Changed Video Width, Changed Video Height
 var ratio = null
@@ -50,20 +51,20 @@ function modelLoaded(){
       let url = document.getElementById('video_url').value
       webcam.setupVideo(url).then(() => {
         console.log('webcam loaded')
-        counting = true
-        drawROI()
+        pmodel.counting = true
+        pmodel.drawROI()
         doneLoading()
-        predictVideo()
+        pmodel.predictVideo()
       })
   })
   
   // Functions to do on stop button click
   stop_btn.addEventListener('click', async () => {
     video_btn.disabled = false
-    predictions_data = {}
+    pmodel.predictions_data = {}
     await webcam.stop()
     stop_proc = true
-    counting = false
+    pmodel.counting = false
 
     document.getElementById('loading-message').innerText = "Model Successfully Loaded"
     document.getElementById('loading-message').style.display = 'block'
