@@ -4,7 +4,7 @@ var observationElements = [];
 var counter = 0;
 var stop_proc = false
 const webcam = new Webcam(document.getElementById('webcam'))
-const pmodel = new Model()
+const pmodel = new Model([0,197,640,88])
 
 // Changed Video Width, Changed Video Height
 var ratio = null
@@ -30,6 +30,10 @@ function doneLoading() {
   video.width = video.videoWidth/ratio
   video.height = video.videoHeight/ratio
   webcamElem.style.cssText = `width:${video.width}px; height:${video.height}px;`
+
+  canvasOutput.width = video.width
+  canvasOutput.height = video.height
+
 }
 
 
@@ -51,6 +55,7 @@ function modelLoaded(){
       let url = document.getElementById('video_url').value
       webcam.setupVideo(url).then(() => {
         console.log('webcam loaded')
+        pmodel.streaming = true
         pmodel.counting = true
         pmodel.drawROI()
         doneLoading()
@@ -65,6 +70,7 @@ function modelLoaded(){
     await webcam.stop()
     stop_proc = true
     pmodel.counting = false
+    pmodel.streaming = false
 
     document.getElementById('loading-message').innerText = "Model Successfully Loaded"
     document.getElementById('loading-message').style.display = 'block'
@@ -74,9 +80,9 @@ function modelLoaded(){
 
 
 // Main function which is fist called
-(async function main() {
+async function main() {
   // Loads the cocossd model from the internet
   model = await cocoSsd.load()
 
   modelLoaded()
-})();
+};

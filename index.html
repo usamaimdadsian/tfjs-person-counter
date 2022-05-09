@@ -13,7 +13,7 @@
 </head>
 <body>
     <!-- Video input address -->
-    <input type="hidden" id="video_url" name="video" value="mini_store.mp4"/>
+    <input type="hidden" id="video_url" name="video" value="example_01.mp4"/>
     <div class="wrapper">
         <!-- Model related messages -->
         <div id="loading-message">
@@ -33,8 +33,10 @@
         <div class="webcam-ui-container">
           <div id="webcam-wrapper" style="display: none">
             <video id="webcam" autoplay muted></video>
+            <!-- <canvas id="canvasOutput"></canvas> -->
           </div>
         </div>
+        <canvas id="canvasOutput"></canvas>
     </div>
 
 
@@ -44,7 +46,8 @@
 
     <script src="js/webcam.js"></script>
     <script src="js/kalman-filter.min.js"></script>
-    <script src="js/model.js"></script>
+    <script src="js/model-kalman.js"></script>
     <script src="js/script.js"></script>
+    <script async src="js/opencv.js" onload="main();" type="text/javascript"></script>
 </body>
 </html>

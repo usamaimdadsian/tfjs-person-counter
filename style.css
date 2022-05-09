@@ -59,6 +59,15 @@ html, body {
     white-space: nowrap;
   }
   
+  /* #canvasOutput{
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+    display: none;
+  } */
+
   .intro {
     max-width: 908px;
     margin: 0 auto;

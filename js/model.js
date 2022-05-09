@@ -3,9 +3,12 @@ var {
 } = kalmanFilter;
 
 const video = document.getElementById('webcam')
+const canvasOutput = document.getElementById('canvasOutput')
 const webcamElem = document.getElementById('webcam-wrapper');
 
 class Model{
+  tracking_called = false
+  streaming = false
   predictions_data = {}
   first_prediction = false
   counting = false
@@ -151,9 +154,97 @@ class Model{
     }
     // console.log('Up -> Down:',top_to_down,'Down -> Up:',down_to_up)
   }
+
+  correctDimensionValues(dims){
+    let arr = []
+    for (let dim of dims){
+      if (dim < 0){
+        arr.push(0)
+      }
+      else{
+        arr.push(dim)
+      }
+    }
+    return arr
+  }
+
+  meanShiftTracking(){
+    let cap = new cv.VideoCapture(video);
+
+    // take first frame of the video
+    let frame = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+    cap.read(frame);
+
+    // hardcode the initial location of window
+    let [x,y,w,h] = this.predictions_data['p0'].dimensions
+    let trackWindow = new cv.Rect(298,1,118,202);
+
+    // set up the ROI for tracking
+    let roi = frame.roi(trackWindow);
+    let hsvRoi = new cv.Mat();
+    cv.cvtColor(roi, hsvRoi, cv.COLOR_RGBA2RGB);
+    cv.cvtColor(hsvRoi, hsvRoi, cv.COLOR_RGB2HSV);
+    let mask = new cv.Mat();
+    let lowScalar = new cv.Scalar(30, 30, 0);
+    let highScalar = new cv.Scalar(180, 180, 180);
+    let low = new cv.Mat(hsvRoi.rows, hsvRoi.cols, hsvRoi.type(), lowScalar);
+    let high = new cv.Mat(hsvRoi.rows, hsvRoi.cols, hsvRoi.type(), highScalar);
+    cv.inRange(hsvRoi, low, high, mask);
+    let roiHist = new cv.Mat();
+    let hsvRoiVec = new cv.MatVector();
+    hsvRoiVec.push_back(hsvRoi);
+    cv.calcHist(hsvRoiVec, [0], mask, roiHist, [180], [0, 180]);
+    cv.normalize(roiHist, roiHist, 0, 255, cv.NORM_MINMAX);
+
+    // delete useless mats.
+    roi.delete(); hsvRoi.delete(); mask.delete(); low.delete(); high.delete(); hsvRoiVec.delete();
+
+    // Setup the termination criteria, either 10 iteration or move by at least 1 pt
+    let termCrit = new cv.TermCriteria(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 1);
+
+    let hsv = new cv.Mat(video.height, video.width, cv.CV_8UC3);
+    let dst = new cv.Mat();
+    let hsvVec = new cv.MatVector();
+    hsvVec.push_back(hsv);
+
+    const FPS = 30;
+    function processVideo() {
+      // console.log('Stream',this.streaming,pmodel.streaming)
+      if (!pmodel.streaming) {
+        // clean and stop.
+        frame.delete(); dst.delete(); hsvVec.delete(); roiHist.delete(); hsv.delete();
+        return;
+      }
+      let begin = Date.now();
+      
+      // start processing.
+      cap.read(frame);
+      cv.cvtColor(frame, hsv, cv.COLOR_RGBA2RGB);
+      cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
+      cv.calcBackProject(hsvVec, [0], roiHist, dst, [0, 180], 1);
+
+        // Apply meanshift to get the new location
+        // and it also returns number of iterations meanShift took to converge,
+        // which is useless in this demo.
+        [, trackWindow] = cv.meanShift(dst, trackWindow, termCrit);
+
+        // Draw it on image
+        let [x, y, w, h] = [trackWindow.x, trackWindow.y, trackWindow.width, trackWindow.height];
+        // this.drawRect(x,y,w,h,'','red')
+        cv.rectangle(frame, new cv.Point(x, y), new cv.Point(x+w, y+h), [255, 0, 0, 255], 2);
+        cv.imshow('canvasOutput', frame);
+
+        // schedule the next one.
+        let delay = 1000/FPS - (Date.now() - begin);
+        setTimeout(processVideo, delay);
+    };
+
+    // schedule the first one.
+    setTimeout(processVideo, 0);
+  }
   
   // Create new object ID
-  createNewID(center,obj_id){
+  createNewID(center,obj_id,dims){
     return {
       pre_center: center,
       obs: [center],
@@ -164,7 +255,8 @@ class Model{
       pre_y: null,
       changeable: true,
       last_counted: null,
-      counted: false
+      counted: false,
+      dimensions: dims
     }
   }
   
@@ -178,7 +270,7 @@ class Model{
     if (obj_len == 0){
       // Creates new person ID on start
       obj_id = obj_len
-        this.predictions_data['p'+obj_id] = this.createNewID(center,obj_id)
+        this.predictions_data['p'+obj_id] = this.createNewID(center,obj_id,dimension_points)
     }else{
         // Find the distance of person id who has the minimum euclidean distance with the prediction
         let min_key = null
@@ -205,12 +297,13 @@ class Model{
               this.predictions_data[min_key].obs.push(center)
               this.predictions_data[min_key].pre_x = x
               this.predictions_data[min_key].pre_y = y
+              this.predictions_data[min_key].dimensions = dimension_points
               obj_id = this.predictions_data[min_key].id
             }
             else{
               obj_id = obj_len
-              console.log('ID',obj_id+1,'Threshold',threshold,(min_value > threshold),!this.predictions_data[min_key].changeable,this.checkChangeable(min_key))
-              this.predictions_data['p'+obj_id] = this.createNewID(center,obj_id)
+              // console.log('ID',obj_id+1,'Threshold',threshold,(min_value > threshold),!this.predictions_data[min_key].changeable,this.checkChangeable(min_key))
+              this.predictions_data['p'+obj_id] = this.createNewID(center,obj_id,dimension_points)
             }
         }else{
           // Create new Object
@@ -219,6 +312,7 @@ class Model{
             this.predictions_data[min_key].obs.push(center)
             this.predictions_data[min_key].pre_x = x
             this.predictions_data[min_key].pre_y = y
+            this.predictions_data[min_key].dimensions = dimension_points
             obj_id = this.predictions_data[min_key].id
         }
     }
@@ -244,6 +338,9 @@ class Model{
   
   // This function run in a loop to do prediction every time.
   predictVideo() {
+    // if (Object.keys(pmodel.predictions_data).length > 0 && !pmodel.tracking_called){
+    //   pmodel.meanShiftTracking()
+    // }
     // Now let's start classifying the stream.
     model.detect(video).then(function (predictions) {
       // Remove any highlighting we did previous frame.

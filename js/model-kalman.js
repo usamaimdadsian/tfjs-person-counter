@@ -4,7 +4,6 @@ var {
 
 const video = document.getElementById('webcam')
 const webcamElem = document.getElementById('webcam-wrapper');
-const kFilter = new KalmanFilter({observation: 2});
 
 class Model{
   predictions_data = {}
@@ -20,6 +19,7 @@ class Model{
   roi_h = 0
   top_to_down = 0
   down_to_up = 0
+  prediction_no = 0
 
   constructor(roi_dimensions = [247,142,247,88]){
     [this.roi_x,this.roi_y,this.roi_w,this.roi_h] = roi_dimensions
@@ -43,17 +43,22 @@ class Model{
   }
 
   // Draws the detection rectangle on person along with label
-  drawRect(x, y, w, h, text = '', color = 'red') {
+  drawRect(x, y, w, h, text = '', color = 'red',kalman=false) {
     const rect = document.createElement('div');
     rect.classList.add('rect');
     rect.style.cssText = `top: ${y}px; left: ${x}px; width: ${w}px; height: ${h}px; border-color: ${color};`;
-
+    
     const label = document.createElement('div');
     label.classList.add('label');
     label.innerText = text;
     rect.appendChild(label);
-
+    
+    if (kalman){
+      rect.style.borderWidth = '5px;'
+      // console.log('its kalman',rect.outerHTML)
+    }
     webcamElem.appendChild(rect);
+
   }
 
   // Checks if two rectangles have some area common are not
@@ -154,7 +159,8 @@ class Model{
   }
   
   // Create new object ID
-  createNewID(center,obj_id){
+  createNewID(center,obj_id,dims){
+    let kf = new KalmanFilter({observation: 4})
     return {
       pre_center: center,
       obs: [center],
@@ -165,7 +171,15 @@ class Model{
       pre_y: null,
       changeable: true,
       last_counted: null,
-      counted: false
+      counted: false,
+      observations: [dims],
+      kFilter: kf,
+      predicted: kf.predict(),
+      previous_corrected: null,
+      predictions: [],
+      results: [],
+      prediction_counter: 0,
+      prediction_no: [this.prediction_no]
     }
   }
   
@@ -179,7 +193,7 @@ class Model{
     if (obj_len == 0){
       // Creates new person ID on start
       obj_id = obj_len
-        this.predictions_data['p'+obj_id] = this.createNewID(center,obj_id)
+        this.predictions_data['p'+obj_id] = this.createNewID(center,obj_id,dimension_points)
     }else{
         // Find the distance of person id who has the minimum euclidean distance with the prediction
         let min_key = null
@@ -204,24 +218,28 @@ class Model{
               this.predictions_data[min_key].pre_center = center
               this.predictions_data[min_key].end_time = new Date()
               this.predictions_data[min_key].obs.push(center)
-              this.predictions_data[min_key].obs = kFilter.filterAll(this.predictions_data[min_key].obs)
               this.predictions_data[min_key].pre_x = x
               this.predictions_data[min_key].pre_y = y
+              this.predictions_data[min_key].observations.push(dimension_points)
+              this.predictions_data[min_key].prediction_counter = 0
+              this.predictions_data[min_key].prediction_no.push(this.prediction_no)
               obj_id = this.predictions_data[min_key].id
             }
             else{
               obj_id = obj_len
               console.log('ID',obj_id+1,'Threshold',threshold,(min_value > threshold),!this.predictions_data[min_key].changeable,this.checkChangeable(min_key))
-              this.predictions_data['p'+obj_id] = this.createNewID(center,obj_id)
+              this.predictions_data['p'+obj_id] = this.createNewID(center,obj_id,dimension_points)
             }
         }else{
           // Create new Object
             this.predictions_data[min_key].pre_center = center
             this.predictions_data[min_key].end_time = new Date()
             this.predictions_data[min_key].obs.push(center)
-            this.predictions_data[min_key].obs = kFilter.filterAll(this.predictions_data[min_key].obs)
             this.predictions_data[min_key].pre_x = x
             this.predictions_data[min_key].pre_y = y
+            this.predictions_data[min_key].observations.push(dimension_points)
+            this.predictions_data[min_key].prediction_counter = 0
+            this.predictions_data[min_key].prediction_no.push(this.prediction_no)
             obj_id = this.predictions_data[min_key].id
         }
     }
@@ -243,10 +261,56 @@ class Model{
   getCorrectedDimension(point){
     return Math.round(point/ratio)
   }
+
+  kalmanPredictions(){
+    for (let [key,value] of Object.entries(this.predictions_data)){
+      // if (!value.counted && value.prediction_counter < 20){
+      if (value.counted && value.prediction_counter < 5){
+        let observations = value.observations;
+        // if (observations.length < 2){
+        //   let obs = observations[0]
+        //   let b = [10,10,10,10]
+        //   let results = obs.map(function(item){
+        //       return item + b.shift()
+        //   })
+        //   observations.push(results)
+        // }
+        let prediction = null
+        observations.forEach(observation => {
+            let previousCorrected = value.previous_corrected
+            value.predicted = value.kFilter.predict({
+                previousCorrected
+            });
+  
+            let predicted = value.predicted
+            const correctedState = value.kFilter.correct({
+                predicted,
+                observation
+            });
+            let guessed_dims = predicted.mean
+            prediction = [Math.round(guessed_dims[0][0]),Math.round(guessed_dims[1][0]),Math.round(guessed_dims[2][0]),Math.round(guessed_dims[3][0])]
+            // console.log(tguessed_dims)
+            // let [gx,gy,gw,gh] = tguessed_dims
+            // this.drawRect(gx,gy,gw,gh,'kalman predictions','red',true)
+            // predictions.push(predicted.mean[0][0])
+            // // predicted = predictedState.mean
+  
+            // results.push(...correctedState.mean[0]);
+  
+            // update the previousCorrected for next loop iteration
+            value.previous_corrected = correctedState
+        });
+        value.observations.push(prediction)
+        value.prediction_counter += 1
+        this.drawRect(...prediction,'kalman','red',true)
+      }
+    }
+  }
   
   
   // This function run in a loop to do prediction every time.
   predictVideo() {
+    
     // Now let's start classifying the stream.
     model.detect(video).then(function (predictions) {
       // Remove any highlighting we did previous frame.
@@ -272,8 +336,12 @@ class Model{
         }
       }
       if (prediction_this_time) {
+        this.prediction_no += 1
         pmodel.first_prediction = true
         // console.log(prediction_data)
+      }
+      if (Object.keys(pmodel.predictions_data).length > 0){
+        pmodel.kalmanPredictions()
       }
   
       if (!stop_proc) {
