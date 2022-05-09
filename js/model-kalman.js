@@ -19,7 +19,7 @@ class Model{
   roi_h = 0
   top_to_down = 0
   down_to_up = 0
-  prediction_no = 0
+
 
   constructor(roi_dimensions = [247,142,247,88]){
     [this.roi_x,this.roi_y,this.roi_w,this.roi_h] = roi_dimensions
@@ -178,8 +178,7 @@ class Model{
       previous_corrected: null,
       predictions: [],
       results: [],
-      prediction_counter: 0,
-      prediction_no: [this.prediction_no]
+      prediction_counter: 0
     }
   }
   
@@ -222,7 +221,6 @@ class Model{
               this.predictions_data[min_key].pre_y = y
               this.predictions_data[min_key].observations.push(dimension_points)
               this.predictions_data[min_key].prediction_counter = 0
-              this.predictions_data[min_key].prediction_no.push(this.prediction_no)
               obj_id = this.predictions_data[min_key].id
             }
             else{
@@ -239,7 +237,6 @@ class Model{
             this.predictions_data[min_key].pre_y = y
             this.predictions_data[min_key].observations.push(dimension_points)
             this.predictions_data[min_key].prediction_counter = 0
-            this.predictions_data[min_key].prediction_no.push(this.prediction_no)
             obj_id = this.predictions_data[min_key].id
         }
     }
@@ -336,7 +333,6 @@ class Model{
         }
       }
       if (prediction_this_time) {
-        this.prediction_no += 1
         pmodel.first_prediction = true
         // console.log(prediction_data)
       }
