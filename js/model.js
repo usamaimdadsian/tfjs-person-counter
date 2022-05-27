@@ -3,7 +3,7 @@ var {
 } = kalmanFilter;
 
 const video = document.getElementById('webcam')
-const canvasOutput = document.getElementById('canvasOutput')
+// const canvasOutput = document.getElementById('canvasOutput')
 const webcamElem = document.getElementById('webcam-wrapper');
 
 class Model{
@@ -365,6 +365,21 @@ class Model{
           prediction_this_time = true
         }
       }
+
+      let thtml = '';
+      for (let [k, v] of Object.entries(pmodel.predictions_data)) {
+        thtml += ` 
+                  <div class="counting-container">
+                    <h4>Person: ${v.id+1}</h4>
+                    <span><b>Entering Time:</b>${v.start_time.toLocaleTimeString()}</span>
+                    <br>
+                    <span><b>Leave Time:</b>${v.end_time.toLocaleTimeString()}</span>
+                    <br>
+                    <span><b>Elapsed Time:</b>${v.end_time-v.start_time} milliseconds</span>
+                  </div>
+                `
+      }
+      document.getElementById('counting').innerHTML = thtml
       if (prediction_this_time) {
         pmodel.first_prediction = true
         // console.log(prediction_data)

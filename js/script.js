@@ -31,8 +31,8 @@ function doneLoading() {
   video.height = video.videoHeight/ratio
   webcamElem.style.cssText = `width:${video.width}px; height:${video.height}px;`
 
-  canvasOutput.width = video.width
-  canvasOutput.height = video.height
+  // canvasOutput.width = video.width
+  // canvasOutput.height = video.height
 
 }
 
